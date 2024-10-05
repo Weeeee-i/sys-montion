@@ -97,7 +97,7 @@ fn main() -> io::Result<()> {
         )
         .arg(
             clap::Arg::new("volume-level")
-                .long("volume_level")
+                .long("volume-level")
                 .help("Output volume level")
                 .action(clap::ArgAction::SetTrue),
         )
