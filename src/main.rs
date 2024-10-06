@@ -70,6 +70,45 @@ fn get_brightness() -> Result<String, io::Error> {
     Ok(format!("BL: {}%", brightness_percentage))
 }
 
+fn get_memory() -> Result<String, io::Error> {
+    let meminfo_path = "/proc/meminfo";
+    let meminfo = read_file(meminfo_path)?;
+
+    let mut total_memory: i64 = 0;
+    // let mut free_memory: i64 = 0;
+    let mut available_memory: i64 = 0;
+
+    // 逐行解析 meminfo 文件
+    for line in meminfo.lines() {
+        if line.starts_with("MemTotal:") {
+            total_memory = parse_meminfo_value(line);
+        // } else if line.starts_with("MemFree:") {
+        //    free_memory = parse_meminfo_value(line);
+        } else if line.starts_with("MemAvailable:") {
+            available_memory = parse_meminfo_value(line);
+        }
+    }
+
+    if total_memory == 0 {
+        return Ok("Unable to retrieve memory info".to_string());
+    }
+
+    // 计算内存使用量百分比： (total_memory - available_memory) / total_memory * 100
+    // let used_memory = total_memory - available_memory;
+    let used_memory = (total_memory - available_memory) / 1024;
+    // let used_percentage = (used_memory * 100) / total_memory;
+
+    Ok(format!("MEM: {}M", used_memory))
+}
+
+fn parse_meminfo_value(line: &str) -> i64 {
+    line.split_whitespace()
+        .nth(1)
+        .unwrap_or("0")
+        .parse()
+        .unwrap_or(0)
+}
+
 fn main() -> io::Result<()> {
     let battery_path = "/sys/class/power_supply/BAT0/";
 
@@ -105,6 +144,12 @@ fn main() -> io::Result<()> {
             clap::Arg::new("backlight")
                 .long("backlight")
                 .help("Output backlight percentage")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            clap::Arg::new("memory")
+                .long("memory")
+                .help("Output Memory")
                 .action(clap::ArgAction::SetTrue),
         )
         .get_matches();
@@ -144,6 +189,12 @@ fn main() -> io::Result<()> {
             "Unknown".to_string()
         });
         println!("{}", backlight_percentage);
+    } else if matches.get_flag("memory") {
+        let memory = get_memory().unwrap_or_else(|e| {
+            eprintln!("Error reading backlight: {}", e);
+            "Unknown".to_string()
+        });
+        println!("{}", memory);
     } else {
         // 未指定参数时打印帮助信息
         print_help();
